@@ -209,7 +209,7 @@ class MorningAlarmCoordinator(DataUpdateCoordinator):
                 {
                     "entity_id": player,
                     "media_content_id": content_id,
-                    "media_content_type": "music",
+                    "media_content_type": "channel",
                 },
                 blocking=True,
             )
