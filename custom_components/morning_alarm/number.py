@@ -11,11 +11,15 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import (
     CONF_FADE_DURATION,
     CONF_FINAL_BRIGHTNESS,
+    CONF_FINAL_VOLUME,
     CONF_START_BRIGHTNESS,
+    CONF_START_VOLUME,
     CONF_THRESHOLD_BRIGHTNESS,
     DEFAULT_FADE_DURATION,
     DEFAULT_FINAL_BRIGHTNESS,
+    DEFAULT_FINAL_VOLUME,
     DEFAULT_START_BRIGHTNESS,
+    DEFAULT_START_VOLUME,
     DEFAULT_THRESHOLD_BRIGHTNESS,
     DOMAIN,
 )
@@ -62,6 +66,26 @@ _DESCRIPTIONS = [
         native_unit_of_measurement="%",
         mode=NumberMode.SLIDER,
     ),
+    NumberEntityDescription(
+        key=CONF_START_VOLUME,
+        name="Start volume",
+        icon="mdi:volume-low",
+        native_min_value=1,
+        native_max_value=100,
+        native_step=1,
+        native_unit_of_measurement="%",
+        mode=NumberMode.SLIDER,
+    ),
+    NumberEntityDescription(
+        key=CONF_FINAL_VOLUME,
+        name="Final volume",
+        icon="mdi:volume-high",
+        native_min_value=1,
+        native_max_value=100,
+        native_step=1,
+        native_unit_of_measurement="%",
+        mode=NumberMode.SLIDER,
+    ),
 ]
 
 _DEFAULTS: dict[str, float] = {
@@ -69,6 +93,8 @@ _DEFAULTS: dict[str, float] = {
     CONF_START_BRIGHTNESS: DEFAULT_START_BRIGHTNESS,
     CONF_THRESHOLD_BRIGHTNESS: DEFAULT_THRESHOLD_BRIGHTNESS,
     CONF_FINAL_BRIGHTNESS: DEFAULT_FINAL_BRIGHTNESS,
+    CONF_START_VOLUME: DEFAULT_START_VOLUME,
+    CONF_FINAL_VOLUME: DEFAULT_FINAL_VOLUME,
 }
 
 

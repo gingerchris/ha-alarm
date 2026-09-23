@@ -13,17 +13,21 @@ from .const import (
     CONF_DIMMABLE_LIGHTS,
     CONF_FADE_DURATION,
     CONF_FINAL_BRIGHTNESS,
+    CONF_FINAL_VOLUME,
     CONF_MEDIA_CONTENT_ID,
     CONF_MEDIA_PLAYER,
     CONF_ONOFF_LIGHTS,
     CONF_START_BRIGHTNESS,
+    CONF_START_VOLUME,
     CONF_THRESHOLD_BRIGHTNESS,
     DAYS,
     DEFAULT_ALARM_TIME,
     DEFAULT_FADE_DURATION,
     DEFAULT_FINAL_BRIGHTNESS,
+    DEFAULT_FINAL_VOLUME,
     DEFAULT_SAT_TIME,
     DEFAULT_START_BRIGHTNESS,
+    DEFAULT_START_VOLUME,
     DEFAULT_SUN_TIME,
     DEFAULT_THRESHOLD_BRIGHTNESS,
     DOMAIN,
@@ -54,6 +58,16 @@ def _audio_schema(defaults: dict[str, Any]) -> vol.Schema:
         )
     fields[vol.Optional(CONF_MEDIA_CONTENT_ID, default=defaults.get(CONF_MEDIA_CONTENT_ID, ""))] = (
         selector.TextSelector(selector.TextSelectorConfig(type=selector.TextSelectorType.TEXT))
+    )
+    fields[vol.Optional(CONF_START_VOLUME, default=int(defaults.get(CONF_START_VOLUME, DEFAULT_START_VOLUME)))] = (
+        selector.NumberSelector(
+            selector.NumberSelectorConfig(min=1, max=100, step=1, unit_of_measurement="%", mode=selector.NumberSelectorMode.SLIDER)
+        )
+    )
+    fields[vol.Optional(CONF_FINAL_VOLUME, default=int(defaults.get(CONF_FINAL_VOLUME, DEFAULT_FINAL_VOLUME)))] = (
+        selector.NumberSelector(
+            selector.NumberSelectorConfig(min=1, max=100, step=1, unit_of_measurement="%", mode=selector.NumberSelectorMode.SLIDER)
+        )
     )
     return vol.Schema(fields)
 
@@ -155,7 +169,7 @@ def _normalise_options(data: dict[str, Any]) -> dict[str, Any]:
         key = day_time_key(day)
         if key in out:
             out[key] = str(out[key])[:5]
-    for key in (CONF_FADE_DURATION, CONF_START_BRIGHTNESS, CONF_THRESHOLD_BRIGHTNESS, CONF_FINAL_BRIGHTNESS):
+    for key in (CONF_FADE_DURATION, CONF_START_BRIGHTNESS, CONF_THRESHOLD_BRIGHTNESS, CONF_FINAL_BRIGHTNESS, CONF_START_VOLUME, CONF_FINAL_VOLUME):
         if key in out:
             out[key] = int(out[key])
     return out

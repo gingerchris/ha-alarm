@@ -24,6 +24,7 @@ def _make_coordinator(hass: HomeAssistant, mock_config_entry) -> MorningAlarmCoo
 async def test_start_media_calls_play(hass: HomeAssistant, mock_config_entry) -> None:
     """_start_media calls media_player.play_media service."""
     coordinator = _make_coordinator(hass, mock_config_entry)
+    async_mock_service(hass, "media_player", "volume_set")
     calls = async_mock_service(hass, "media_player", "play_media")
 
     await coordinator._start_media()
@@ -31,6 +32,19 @@ async def test_start_media_calls_play(hass: HomeAssistant, mock_config_entry) ->
     assert len(calls) == 1
     assert calls[0].data["entity_id"] == "media_player.test_yoto"
     assert calls[0].data["media_content_id"] == "yoto://test-station"
+
+
+async def test_start_media_sets_initial_volume(hass: HomeAssistant, mock_config_entry) -> None:
+    """_start_media sets volume to start_volume before playing."""
+    coordinator = _make_coordinator(hass, mock_config_entry)
+    vol_calls = async_mock_service(hass, "media_player", "volume_set")
+    async_mock_service(hass, "media_player", "play_media")
+
+    await coordinator._start_media()
+
+    assert len(vol_calls) == 1
+    assert vol_calls[0].data["entity_id"] == "media_player.test_yoto"
+    assert vol_calls[0].data["volume_level"] == pytest.approx(0.10)
 
 
 async def test_start_media_skipped_when_no_player(hass: HomeAssistant, mock_config_entry) -> None:
@@ -191,6 +205,53 @@ async def test_non_dimmable_light_turned_on_without_brightness(
     plain_calls = [c for c in calls if "brightness" not in c.data]
     assert len(brightness_calls) == 0
     assert len(plain_calls) > 0
+
+
+# ------------------------------------------------------------------ #
+# Volume                                                               #
+# ------------------------------------------------------------------ #
+
+async def test_volume_increases_to_final(hass: HomeAssistant, mock_config_entry) -> None:
+    """Volume ramps from start_volume to final_volume over the fade."""
+    coordinator = _make_coordinator(hass, mock_config_entry)
+    vol_calls = async_mock_service(hass, "media_player", "volume_set")
+
+    with patch("asyncio.sleep", new_callable=AsyncMock):
+        await coordinator._volume_sequence()
+
+    levels = [c.data["volume_level"] for c in vol_calls]
+    assert len(levels) > 1
+    assert levels[0] >= 0.10  # start_volume
+    assert levels[-1] == pytest.approx(0.50)  # final_volume
+
+
+async def test_volume_is_non_decreasing(hass: HomeAssistant, mock_config_entry) -> None:
+    """Volume values never decrease across steps."""
+    coordinator = _make_coordinator(hass, mock_config_entry)
+    vol_calls = async_mock_service(hass, "media_player", "volume_set")
+
+    with patch("asyncio.sleep", new_callable=AsyncMock):
+        await coordinator._volume_sequence()
+
+    levels = [c.data["volume_level"] for c in vol_calls]
+    for i in range(1, len(levels)):
+        assert levels[i] >= levels[i - 1]
+
+
+async def test_volume_skipped_when_no_player(hass: HomeAssistant, mock_config_entry) -> None:
+    """_volume_sequence is a no-op when no media player is configured."""
+    mock_config_entry.add_to_hass(hass)
+    opts = dict(mock_config_entry.options)
+    opts["media_player_entity"] = ""
+    hass.config_entries.async_update_entry(mock_config_entry, options=opts)
+    coordinator = MorningAlarmCoordinator(hass, mock_config_entry)
+
+    vol_calls = async_mock_service(hass, "media_player", "volume_set")
+
+    with patch("asyncio.sleep", new_callable=AsyncMock):
+        await coordinator._volume_sequence()
+
+    assert len(vol_calls) == 0
 
 
 # ------------------------------------------------------------------ #

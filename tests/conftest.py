@@ -15,6 +15,8 @@ DEFAULT_OPTIONS = {
     "threshold_brightness": 40,
     "final_brightness": 100,
     "fade_duration": 1,
+    "start_volume": 10,
+    "final_volume": 50,
     "mon_enabled": True,
     "mon_time": "07:00",
     "tue_enabled": True,

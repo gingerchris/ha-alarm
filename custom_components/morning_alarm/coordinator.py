@@ -17,10 +17,12 @@ from .const import (
     CONF_DIMMABLE_LIGHTS,
     CONF_FADE_DURATION,
     CONF_FINAL_BRIGHTNESS,
+    CONF_FINAL_VOLUME,
     CONF_MEDIA_CONTENT_ID,
     CONF_MEDIA_PLAYER,
     CONF_ONOFF_LIGHTS,
     CONF_START_BRIGHTNESS,
+    CONF_START_VOLUME,
     CONF_THRESHOLD_BRIGHTNESS,
     DAY_NAMES,
     DAY_WEEKDAY,
@@ -28,7 +30,9 @@ from .const import (
     DEFAULT_ALARM_TIME,
     DEFAULT_FADE_DURATION,
     DEFAULT_FINAL_BRIGHTNESS,
+    DEFAULT_FINAL_VOLUME,
     DEFAULT_START_BRIGHTNESS,
+    DEFAULT_START_VOLUME,
     DEFAULT_THRESHOLD_BRIGHTNESS,
     DOMAIN,
     FADE_STEP_INTERVAL,
@@ -183,6 +187,7 @@ class MorningAlarmCoordinator(DataUpdateCoordinator):
             await asyncio.gather(
                 self._start_media(),
                 self._lighting_sequence(),
+                self._volume_sequence(),
                 return_exceptions=True,
             )
         except asyncio.CancelledError:
@@ -202,6 +207,16 @@ class MorningAlarmCoordinator(DataUpdateCoordinator):
         if not player:
             _LOGGER.debug("No media player configured")
             return
+        start_vol = int(self.config_entry.options.get(CONF_START_VOLUME, DEFAULT_START_VOLUME))
+        try:
+            await self.hass.services.async_call(
+                "media_player",
+                "volume_set",
+                {"entity_id": player, "volume_level": round(start_vol / 100, 2)},
+                blocking=True,
+            )
+        except Exception as exc:
+            _LOGGER.error("Failed to set initial volume on %s: %s", player, exc)
         try:
             await self.hass.services.async_call(
                 "media_player",
@@ -230,6 +245,43 @@ class MorningAlarmCoordinator(DataUpdateCoordinator):
             )
         except Exception as exc:
             _LOGGER.error("Failed to pause media on %s: %s", player, exc)
+
+    # ------------------------------------------------------------------ #
+    # Volume                                                               #
+    # ------------------------------------------------------------------ #
+
+    async def _volume_sequence(self) -> None:
+        player = self.config_entry.options.get(CONF_MEDIA_PLAYER)
+        if not player:
+            return
+        opts = self.config_entry.options
+        start_vol = int(opts.get(CONF_START_VOLUME, DEFAULT_START_VOLUME))
+        final_vol = int(opts.get(CONF_FINAL_VOLUME, DEFAULT_FINAL_VOLUME))
+        fade_min = int(opts.get(CONF_FADE_DURATION, DEFAULT_FADE_DURATION))
+        num_steps = max(1, (fade_min * 60) // FADE_STEP_INTERVAL)
+        step = 0
+        try:
+            for step in range(1, num_steps + 1):
+                await asyncio.sleep(FADE_STEP_INTERVAL)
+                current_vol = max(
+                    start_vol,
+                    min(final_vol, round(start_vol + (final_vol - start_vol) * step / num_steps)),
+                )
+                await self._set_volume(player, current_vol)
+        except asyncio.CancelledError:
+            _LOGGER.debug("Volume sequence cancelled at step %d/%d", step, num_steps)
+            raise
+
+    async def _set_volume(self, entity_id: str, volume_pct: int) -> None:
+        try:
+            await self.hass.services.async_call(
+                "media_player",
+                "volume_set",
+                {"entity_id": entity_id, "volume_level": round(volume_pct / 100, 2)},
+                blocking=False,
+            )
+        except Exception as exc:
+            _LOGGER.error("Failed to set volume on %s: %s", entity_id, exc)
 
     # ------------------------------------------------------------------ #
     # Lighting                                                             #

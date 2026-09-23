@@ -13,7 +13,9 @@
         "description": "Select the media player and the content ID for the radio station you want to play.",
         "data": {
           "media_player_entity": "Yoto media player",
-          "media_content_id": "Media content ID"
+          "media_content_id": "Media content ID",
+          "start_volume": "Start volume",
+          "final_volume": "Final volume"
         },
         "data_description": {
           "media_content_id": "The content identifier passed to play_media (e.g. a Yoto station URI). Leave blank to skip audio."
@@ -68,7 +70,9 @@
         "title": "Audio",
         "data": {
           "media_player_entity": "Yoto media player",
-          "media_content_id": "Media content ID"
+          "media_content_id": "Media content ID",
+          "start_volume": "Start volume",
+          "final_volume": "Final volume"
         }
       },
       "lights": {
