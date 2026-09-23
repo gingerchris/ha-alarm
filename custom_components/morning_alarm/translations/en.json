@@ -1,0 +1,111 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Morning Alarm",
+        "description": "Give your alarm a name.",
+        "data": {
+          "title": "Name"
+        }
+      },
+      "audio": {
+        "title": "Audio",
+        "description": "Select the media player and the content ID for the radio station you want to play.",
+        "data": {
+          "media_player_entity": "Yoto media player",
+          "media_content_id": "Media content ID"
+        },
+        "data_description": {
+          "media_content_id": "The content identifier passed to play_media (e.g. a Yoto station URI). Leave blank to skip audio."
+        }
+      },
+      "lights": {
+        "title": "Lights",
+        "description": "Select which lights to control.",
+        "data": {
+          "dimmable_lights": "Dimmable lights (brightness fade)",
+          "onoff_lights": "On/off lights (turned on at threshold)"
+        }
+      },
+      "brightness": {
+        "title": "Brightness & fade",
+        "description": "Configure the wake-up light fade.",
+        "data": {
+          "fade_duration": "Fade duration",
+          "start_brightness": "Starting brightness",
+          "threshold_brightness": "Threshold brightness (on/off lights turn on here)",
+          "final_brightness": "Final brightness"
+        }
+      },
+      "schedule": {
+        "title": "Weekly schedule",
+        "description": "Set the alarm time for each day. Disabled days will never trigger.",
+        "data": {
+          "mon_enabled": "Monday enabled",
+          "mon_time": "Monday alarm time",
+          "tue_enabled": "Tuesday enabled",
+          "tue_time": "Tuesday alarm time",
+          "wed_enabled": "Wednesday enabled",
+          "wed_time": "Wednesday alarm time",
+          "thu_enabled": "Thursday enabled",
+          "thu_time": "Thursday alarm time",
+          "fri_enabled": "Friday enabled",
+          "fri_time": "Friday alarm time",
+          "sat_enabled": "Saturday enabled",
+          "sat_time": "Saturday alarm time",
+          "sun_enabled": "Sunday enabled",
+          "sun_time": "Sunday alarm time"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Morning Alarm is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "audio": {
+        "title": "Audio",
+        "data": {
+          "media_player_entity": "Yoto media player",
+          "media_content_id": "Media content ID"
+        }
+      },
+      "lights": {
+        "title": "Lights",
+        "data": {
+          "dimmable_lights": "Dimmable lights",
+          "onoff_lights": "On/off lights"
+        }
+      },
+      "brightness": {
+        "title": "Brightness & fade",
+        "data": {
+          "fade_duration": "Fade duration",
+          "start_brightness": "Starting brightness",
+          "threshold_brightness": "Threshold brightness",
+          "final_brightness": "Final brightness"
+        }
+      },
+      "schedule": {
+        "title": "Weekly schedule",
+        "data": {
+          "mon_enabled": "Monday enabled",
+          "mon_time": "Monday alarm time",
+          "tue_enabled": "Tuesday enabled",
+          "tue_time": "Tuesday alarm time",
+          "wed_enabled": "Wednesday enabled",
+          "wed_time": "Wednesday alarm time",
+          "thu_enabled": "Thursday enabled",
+          "thu_time": "Thursday alarm time",
+          "fri_enabled": "Friday enabled",
+          "fri_time": "Friday alarm time",
+          "sat_enabled": "Saturday enabled",
+          "sat_time": "Saturday alarm time",
+          "sun_enabled": "Sunday enabled",
+          "sun_time": "Sunday alarm time"
+        }
+      }
+    }
+  }
+}
