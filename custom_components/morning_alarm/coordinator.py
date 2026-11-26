@@ -36,6 +36,7 @@ from .const import (
     DEFAULT_THRESHOLD_BRIGHTNESS,
     DOMAIN,
     FADE_STEP_INTERVAL,
+    SNOOZE_WAKE_DURATION,
     day_enabled_key,
     day_time_key,
 )
@@ -63,6 +64,8 @@ class MorningAlarmCoordinator(DataUpdateCoordinator):
         self._scheduled_cancels: dict[str, Any] = {}
         self._alarm_task: asyncio.Task | None = None
         self.alarm_running = False
+        self._snoozed = False
+        self._wake_at = 0.0
 
     async def _async_update_data(self) -> dict[str, Any]:
         return {"alarm_running": self.alarm_running}
@@ -153,8 +156,20 @@ class MorningAlarmCoordinator(DataUpdateCoordinator):
         if self._alarm_task and not self._alarm_task.done():
             _LOGGER.warning("Alarm already running - ignoring duplicate trigger")
             return
+        self._snoozed = False
+        self._wake_at = self.hass.loop.time() + self._fade_seconds()
         self._alarm_task = self.hass.async_create_task(
             self._alarm_sequence(), name="morning_alarm_sequence"
+        )
+
+    async def async_snooze(self) -> None:
+        """Silence a rising alarm until the time its fade would have finished."""
+        if not self.alarm_running or self._snoozed:
+            return
+        self._snoozed = True
+        await self._cancel_alarm_task()
+        self._alarm_task = self.hass.async_create_task(
+            self._snooze_sequence(), name="morning_alarm_snooze"
         )
 
     async def async_stop_alarm(self) -> None:
@@ -178,24 +193,44 @@ class MorningAlarmCoordinator(DataUpdateCoordinator):
     # Alarm sequence                                                       #
     # ------------------------------------------------------------------ #
 
+    def _fade_seconds(self) -> int:
+        return int(self.config_entry.options.get(CONF_FADE_DURATION, DEFAULT_FADE_DURATION)) * 60
+
     async def _alarm_sequence(self) -> None:
         try:
             self.alarm_running = True
             self.async_set_updated_data({"alarm_running": True})
-
-            # Audio and lighting run concurrently; each handles its own errors.
-            await asyncio.gather(
-                self._start_media(),
-                self._lighting_sequence(),
-                self._volume_sequence(),
-                return_exceptions=True,
-            )
+            await self._ramp_up(self._fade_seconds())
         except asyncio.CancelledError:
             _LOGGER.debug("Alarm sequence cancelled")
             raise
         finally:
             self.alarm_running = False
             self.async_set_updated_data({"alarm_running": False})
+
+    async def _snooze_sequence(self) -> None:
+        try:
+            self.alarm_running = True
+            self.async_set_updated_data({"alarm_running": True})
+            await asyncio.gather(
+                self._turn_off_lights(),
+                self._pause_media(),
+                return_exceptions=True,
+            )
+            await asyncio.sleep(max(0, self._wake_at - self.hass.loop.time()))
+            await self._ramp_up(SNOOZE_WAKE_DURATION)
+        finally:
+            self.alarm_running = False
+            self.async_set_updated_data({"alarm_running": False})
+
+    async def _ramp_up(self, duration: int) -> None:
+        # Audio and lighting run concurrently; each handles its own errors.
+        await asyncio.gather(
+            self._start_media(),
+            self._lighting_sequence(duration),
+            self._volume_sequence(duration),
+            return_exceptions=True,
+        )
 
     # ------------------------------------------------------------------ #
     # Audio                                                                #
@@ -250,15 +285,14 @@ class MorningAlarmCoordinator(DataUpdateCoordinator):
     # Volume                                                               #
     # ------------------------------------------------------------------ #
 
-    async def _volume_sequence(self) -> None:
+    async def _volume_sequence(self, duration: int | None = None) -> None:
         player = self.config_entry.options.get(CONF_MEDIA_PLAYER)
         if not player:
             return
         opts = self.config_entry.options
         start_vol = int(opts.get(CONF_START_VOLUME, DEFAULT_START_VOLUME))
         final_vol = int(opts.get(CONF_FINAL_VOLUME, DEFAULT_FINAL_VOLUME))
-        fade_min = int(opts.get(CONF_FADE_DURATION, DEFAULT_FADE_DURATION))
-        num_steps = max(1, (fade_min * 60) // FADE_STEP_INTERVAL)
+        num_steps = max(1, (duration or self._fade_seconds()) // FADE_STEP_INTERVAL)
         step = 0
         try:
             for step in range(1, num_steps + 1):
@@ -287,12 +321,11 @@ class MorningAlarmCoordinator(DataUpdateCoordinator):
     # Lighting                                                             #
     # ------------------------------------------------------------------ #
 
-    async def _lighting_sequence(self) -> None:
+    async def _lighting_sequence(self, duration: int | None = None) -> None:
         opts = self.config_entry.options
         start_pct = int(opts.get(CONF_START_BRIGHTNESS, DEFAULT_START_BRIGHTNESS))
         threshold_pct = int(opts.get(CONF_THRESHOLD_BRIGHTNESS, DEFAULT_THRESHOLD_BRIGHTNESS))
         final_pct = int(opts.get(CONF_FINAL_BRIGHTNESS, DEFAULT_FINAL_BRIGHTNESS))
-        fade_min = int(opts.get(CONF_FADE_DURATION, DEFAULT_FADE_DURATION))
         dimmable: list[str] = list(opts.get(CONF_DIMMABLE_LIGHTS, []))
         onoff: list[str] = list(opts.get(CONF_ONOFF_LIGHTS, []))
 
@@ -300,7 +333,7 @@ class MorningAlarmCoordinator(DataUpdateCoordinator):
             _LOGGER.debug("No lights configured")
             return
 
-        num_steps = max(1, (fade_min * 60) // FADE_STEP_INTERVAL)
+        num_steps = max(1, (duration or self._fade_seconds()) // FADE_STEP_INTERVAL)
         threshold_reached = False
         step = 0
 
@@ -361,3 +394,17 @@ class MorningAlarmCoordinator(DataUpdateCoordinator):
                 )
             except Exception as exc:
                 _LOGGER.error("Failed to turn on %s: %s", entity_id, exc)
+
+    async def _turn_off_lights(self) -> None:
+        opts = self.config_entry.options
+        for entity_id in [*opts.get(CONF_DIMMABLE_LIGHTS, []), *opts.get(CONF_ONOFF_LIGHTS, [])]:
+            state = self.hass.states.get(entity_id)
+            if state is None or state.state in ("unavailable", "unknown"):
+                _LOGGER.debug("Skipping unavailable light %s", entity_id)
+                continue
+            try:
+                await self.hass.services.async_call(
+                    "light", "turn_off", {"entity_id": entity_id}, blocking=False
+                )
+            except Exception as exc:
+                _LOGGER.error("Failed to turn off %s: %s", entity_id, exc)

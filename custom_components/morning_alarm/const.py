@@ -45,6 +45,7 @@ DEFAULT_SAT_TIME = "08:00"
 DEFAULT_SUN_TIME = "08:00"
 
 FADE_STEP_INTERVAL = 10  # seconds between brightness steps
+SNOOZE_WAKE_DURATION = 60
 
 PLATFORMS = ["binary_sensor", "button", "number", "switch", "time"]
 
