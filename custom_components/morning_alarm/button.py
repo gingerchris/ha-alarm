@@ -1,4 +1,4 @@
-"""Button entities for Morning Alarm — test and stop."""
+"""Button entities for Morning Alarm — test, stop and snooze."""
 from __future__ import annotations
 
 from homeassistant.components.button import ButtonEntity
@@ -21,6 +21,7 @@ async def async_setup_entry(
         [
             MorningAlarmTestButton(coordinator),
             MorningAlarmStopButton(coordinator),
+            MorningAlarmSnoozeButton(coordinator),
         ]
     )
 
@@ -63,3 +64,23 @@ class MorningAlarmStopButton(CoordinatorEntity, ButtonEntity):
 
     async def async_press(self) -> None:
         await self.coordinator.async_stop_alarm()
+
+
+class MorningAlarmSnoozeButton(CoordinatorEntity, ButtonEntity):
+    """Snooze a rising alarm; does nothing at any other time."""
+
+    _attr_icon = "mdi:alarm-snooze"
+    _attr_has_entity_name = True
+    _attr_name = "Snooze alarm"
+
+    def __init__(self, coordinator: MorningAlarmCoordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_snooze_alarm"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, coordinator.config_entry.entry_id)},
+            "name": coordinator.config_entry.title,
+            "manufacturer": "Morning Alarm",
+        }
+
+    async def async_press(self) -> None:
+        await self.coordinator.async_snooze()

@@ -15,6 +15,7 @@ Everything is configured through the Home Assistant UI — no YAML required.
 - **Concurrent audio + lighting** — both start at the same time
 - **Test button** — run the full alarm immediately without waiting for the scheduled time
 - **Stop button** — cancel a running alarm and pause the media player
+- **Snooze button** — silence a rising alarm until its fade would have finished
 - **Dashboard entities** — alarm times, day switches, fade duration, and running status are all exposed as entities you can place on a dashboard
 - **Graceful degradation** — Yoto offline, individual lights unavailable, non-dimmable lights all handled without stopping the rest of the sequence
 - **DST-safe scheduling** — uses Home Assistant's local timezone via `dt_util`
@@ -102,6 +103,35 @@ Press the **Stop alarm** button (entity: `button.<name>_stop_alarm`) while an al
 - Pauses the media player
 
 It does **not** affect the configured schedule.
+
+---
+
+## Snoozing an alarm
+
+Press the **Snooze alarm** button (entity: `button.<name>_snooze_alarm`) while the fade is running. The alarm's lights turn off and the media player pauses. At the time the fade would have finished, they come back with a one-minute ramp.
+
+Pressing it at any other time does nothing, as does pressing it a second time. **Stop alarm** cancels a snoozed alarm.
+
+### Using a Hue button
+
+Leave the button's behaviour in the Hue app as it is, and add an automation that also presses **Snooze alarm**:
+
+```yaml
+alias: Hue button snoozes the morning alarm
+triggers:
+  - trigger: state
+    entity_id: event.your_hue_button
+    not_from: unavailable
+conditions:
+  - condition: state
+    entity_id: event.your_hue_button
+    attribute: event_type
+    state: initial_press
+actions:
+  - action: button.press
+    target:
+      entity_id: button.morning_alarm_snooze_alarm
+```
 
 ---
 
